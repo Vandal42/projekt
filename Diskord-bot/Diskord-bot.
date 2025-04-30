@@ -1,0 +1,72 @@
+import discord
+from discord.ext import commands
+from googletrans import Translator, LANGUAGES
+
+TOKEN = 'YOUR_DISCORD_BOT_TOKEN'
+PREFIX = '!'
+
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+
+translator = Translator()
+
+
+@bot.event
+async def on_ready():
+    print(f'Бот {bot.user.name} готов к работе!')
+    print(f'ID бота: {bot.user.id}')
+
+
+@bot.command(name='translate', aliases=['tr'])
+async def translate_text(ctx, target_lang, *, text):
+    """Переводит текст на указанный язык"""
+    try:
+        if target_lang not in LANGUAGES and target_lang not in LANGUAGES.values():
+            await ctx.send(f"Язык '{target_lang}' не поддерживается. Используйте код языка (например, 'en', 'ru').")
+            return
+
+        translation = translator.translate(text, dest=target_lang)
+
+        embed = discord.Embed(
+            title="🔠 Переводчик",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="Исходный текст", value=text, inline=False)
+        embed.add_field(name=f"Перевод ({LANGUAGES[translation.dest]})", value=translation.text, inline=False)
+        embed.set_footer(text=f"Запросил: {ctx.author.display_name}")
+
+        await ctx.send(embed=embed)
+    except Exception as e:
+        await ctx.send(f"Произошла ошибка: {e}")
+
+
+@bot.command(name='langs')
+async def list_languages(ctx):
+    """Показывает список поддерживаемых языков"""
+    langs_list = "\n".join([f"{code}: {name}" for code, name in LANGUAGES.items()])
+
+    if len(langs_list) > 2000:
+        parts = [langs_list[i:i + 2000] for i in range(0, len(langs_list), 2000)]
+        for part in parts:
+            await ctx.send(f"```\n{part}\n```")
+    else:
+        await ctx.send(f"Поддерживаемые языки:\n```\n{langs_list}\n```")
+
+
+@bot.command(name='detect')
+async def detect_language(ctx, *, text):
+    """Определяет язык текста"""
+    try:
+        detection = translator.detect(text)
+        confidence = detection.confidence * 100
+        await ctx.send(
+            f"Язык текста: {LANGUAGES[detection.lang]} ({detection.lang})\n"
+            f"Точность: {confidence:.2f}%"
+        )
+    except Exception as e:
+        await ctx.send(f"Произошла ошибка при определении языка: {e}")
+
+
+if __name__ == '__main__':
+    bot.run(TOKEN)
